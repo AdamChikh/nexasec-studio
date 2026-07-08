@@ -1,6 +1,8 @@
 import typer
 from rich.console import Console
 
+from nexasec.core.project import create_project
+
 console = Console()
 
 app = typer.Typer()
@@ -8,4 +10,5 @@ app = typer.Typer()
 
 @app.command()
 def project(name: str):
-    console.print(f"[green]Creating project:[/green] {name}")
+    create_project(name)
+    console.print(f"[bold green]✔ Project '{name}' created successfully![/bold green]")
