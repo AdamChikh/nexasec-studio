@@ -8,3 +8,32 @@ wheels/
 
 # Virtual environments
 .venv
+
+# =========================
+# NexaSec Studio Media Files
+# =========================
+
+# Raw video
+projects/**/assets/video/originals/*
+projects/**/assets/video/processed/*
+
+# Audio recordings
+projects/**/assets/audio/*
+
+# Exports
+projects/**/exports/*
+projects/**/renders/*
+
+# Generated captions
+projects/**/captions/raw/*
+projects/**/captions/rendered/*
+
+# Temporary files
+*.tmp
+*.cache
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
