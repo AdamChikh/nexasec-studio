@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "rich>=14.1.0",
     "typer>=0.16.0",
+    "whisperx>=3.8.6",
 ]
 
 [project.scripts]

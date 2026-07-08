@@ -1,20 +1,34 @@
 from pathlib import Path
 import json
 
+from nexasec.core.style import create_style
+
 
 def create_project(name: str) -> None:
+
     root = Path("projects") / name
 
     folders = [
-        "assets/video/originals",
-        "assets/video/processed",
-        "assets/audio",
-        "assets/images",
         "assets/broll",
+        "assets/images",
+
+        "assets/music",
+        "assets/sfx",
+
+        "assets/graphics/logos",
+        "assets/graphics/lower-thirds",
+        "assets/graphics/overlays",
+
+        "assets/fonts",
+
+        "sources/clips",
+
         "captions",
-        "timeline",
+        "timelines",
+
         "renders",
-        "exports",
+        "exports/youtube",
+        "exports/shorts",
     ]
 
     for folder in folders:
@@ -39,9 +53,12 @@ def create_project(name: str) -> None:
         "w",
         encoding="utf-8"
     ) as file:
+
         json.dump(
             metadata,
             file,
             indent=4,
             ensure_ascii=False
         )
+
+    create_style(root)

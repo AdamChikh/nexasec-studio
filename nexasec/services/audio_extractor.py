@@ -1,8 +1,11 @@
 from pathlib import Path
 import subprocess
 
+from nexasec.core.metadata import update_audio_metadata
+
 
 def extract_audio(
+    project_name: str,
     video_path: str,
     output_path: str
 ) -> Path:
@@ -38,6 +41,16 @@ def extract_audio(
     subprocess.run(
         command,
         check=True
+    )
+
+    update_audio_metadata(
+        project_name,
+        {
+            "filename": output.name,
+            "format": "wav",
+            "sample_rate": 16000,
+            "channels": 1
+        }
     )
 
     return output

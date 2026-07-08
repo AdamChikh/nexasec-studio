@@ -1,0 +1,23 @@
+{
+    "brand": "NexaSec",
+    "colors": {
+        "background": "#0A0A0C",
+        "gold": "#C6A15B",
+        "text": "#FFFFFF"
+    },
+    "fonts": {
+        "title": "Inter",
+        "body": "Inter",
+        "code": "JetBrains Mono"
+    },
+    "captions": {
+        "youtube": {
+            "size": 48,
+            "position": "bottom"
+        },
+        "shorts": {
+            "size": 72,
+            "position": "center"
+        }
+    }
+}

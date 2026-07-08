@@ -2,17 +2,17 @@ from pathlib import Path
 import json
 
 
-def load_metadata(project_name: str) -> dict:
-    path = (
+def metadata_path(project_name: str) -> Path:
+    return (
         Path("projects")
         / project_name
         / "metadata.json"
     )
 
-    if not path.exists():
-        raise FileNotFoundError(
-            "metadata.json not found"
-        )
+
+def load_metadata(project_name: str) -> dict:
+
+    path = metadata_path(project_name)
 
     with open(
         path,
@@ -25,13 +25,9 @@ def load_metadata(project_name: str) -> dict:
 def save_metadata(
     project_name: str,
     metadata: dict
-) -> None:
+):
 
-    path = (
-        Path("projects")
-        / project_name
-        / "metadata.json"
-    )
+    path = metadata_path(project_name)
 
     with open(
         path,
@@ -49,11 +45,26 @@ def save_metadata(
 def update_video_metadata(
     project_name: str,
     video_data: dict
-) -> None:
+):
 
     metadata = load_metadata(project_name)
 
     metadata["video"] = video_data
+
+    save_metadata(
+        project_name,
+        metadata
+    )
+
+
+def update_audio_metadata(
+    project_name: str,
+    audio_data: dict
+):
+
+    metadata = load_metadata(project_name)
+
+    metadata["audio"] = audio_data
 
     save_metadata(
         project_name,

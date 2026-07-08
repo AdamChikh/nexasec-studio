@@ -1,0 +1,22 @@
+{
+    "name": "2.1",
+    "type": "camera",
+    "role": "main",
+    "status": "raw",
+    "video": {
+        "file": null,
+        "duration": null,
+        "width": null,
+        "height": null,
+        "fps": null
+    },
+    "audio": {
+        "file": null,
+        "type": "microphone",
+        "sample_rate": null
+    },
+    "layout": {
+        "youtube": "full",
+        "shorts": "crop"
+    }
+}
