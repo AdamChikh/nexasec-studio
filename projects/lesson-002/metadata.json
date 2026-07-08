@@ -1,0 +1,15 @@
+{
+    "title": "",
+    "status": "draft",
+    "language": "ar-DZ",
+    "version": 1,
+    "video": {
+        "filename": "source.mp4",
+        "duration": 5.0,
+        "width": 1280,
+        "height": 720,
+        "fps": 30.0,
+        "video_codec": "h264",
+        "audio_codec": "aac"
+    }
+}
