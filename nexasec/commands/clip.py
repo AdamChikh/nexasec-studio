@@ -7,6 +7,7 @@ from nexasec.core.clip_store import clip_folder, load_clip, save_clip
 from nexasec.services.clip_attacher import attach as attach_media
 from nexasec.services.clip_attacher import SUPPORTED_MEDIA_TYPES
 from nexasec.services.audio_sync import sync_audio
+from nexasec.services.clip_transcriber import transcribe_clip, transcribe_all_clips
 
 
 app = typer.Typer()
@@ -133,6 +134,76 @@ def sync(
         console.print(
             f"[bold green]✔ Clip '{clip_name}' synced:[/bold green] {output_path}"
         )
+
+    except Exception as e:
+
+        console.print(
+            f"[bold red]✖ {e}[/bold red]"
+        )
+
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def transcribe(
+    project: str,
+    clip_name: str,
+    model_size: str = "small"
+):
+    """
+    Transcribe a clip's microphone audio with WhisperX.
+
+    Requires audio to already be attached via 'clip attach ... audio'.
+    """
+
+    try:
+
+        output = transcribe_clip(
+            project,
+            clip_name,
+            model_size=model_size
+        )
+
+        console.print(
+            f"[bold green]✔ Clip '{clip_name}' transcribed:[/bold green] {output}"
+        )
+
+    except Exception as e:
+
+        console.print(
+            f"[bold red]✖ {e}[/bold red]"
+        )
+
+        raise typer.Exit(code=1)
+
+
+@app.command(name="transcribe-all")
+def transcribe_all(
+    project: str,
+    model_size: str = "small"
+):
+    """
+    Transcribe every clip in a project that has audio attached.
+    Clips without audio yet are skipped.
+    """
+
+    try:
+
+        results = transcribe_all_clips(
+            project,
+            model_size=model_size
+        )
+
+        if not results:
+            console.print(
+                "[yellow]No clips with attached audio found.[/yellow]"
+            )
+            return
+
+        for clip_name, output in results.items():
+            console.print(
+                f"[bold green]✔ {clip_name}:[/bold green] {output}"
+            )
 
     except Exception as e:
 

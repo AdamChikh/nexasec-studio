@@ -1,38 +1,14 @@
 import typer
-from pathlib import Path
-
-from nexasec.services.transcriber import transcribe_audio
 
 
 app = typer.Typer()
 
 
-@app.command()
-def generate(
-    project: str
-):
-
-    audio = (
-        Path("projects")
-        / project
-        / "assets"
-        / "audio"
-        / "source.wav"
-    )
-
-    output = (
-        Path("projects")
-        / project
-        / "captions"
-        / "raw"
-        / "transcript.json"
-    )
-
-
-    transcribe_audio(
-        str(audio),
-        str(output)
-    )
-
-
-    print("✔ Captions generated")
+# NOTE: raw transcription now happens per-clip via
+# 'nexasec clip transcribe <project> <clip>' (see commands/clip.py).
+#
+# This command group is reserved for the Caption Engine (M4):
+# Arabic correction, RTL/LTR formatting, style-driven caption
+# rendering (clean captions for YouTube, karaoke for Shorts), and
+# SRT/ASS export -- built on top of the raw transcripts clip
+# transcribe already produces.

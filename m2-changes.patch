@@ -1,0 +1,384 @@
+From 852d8aafdda733738b89b8646d3b3c53dc3db5c6 Mon Sep 17 00:00:00 2001
+From: "Adam (via Claude)" <adam@nexasec.local>
+Date: Thu, 9 Jul 2026 07:20:17 +0000
+Subject: [PATCH] M2: per-clip transcription (clip transcribe / transcribe-all)
+
+- New services/clip_transcriber.py: resolves a clip's own attached
+  audio, runs WhisperX, writes to sources/clips/<clip>/captions/raw/,
+  updates clip status to 'transcribed'
+- 'nexasec clip transcribe <project> <clip>' and
+  'nexasec clip transcribe-all <project>' (skips clips with no audio
+  attached rather than erroring, since a project can mix in-progress
+  and ready clips)
+- Emptied out the old commands/captions.py 'generate' command, which
+  hardcoded the pre-M1 single-source path (assets/audio/source.wav)
+  and no longer matched the clip-based layout. Reserved for the real
+  Caption Engine in M4 (Arabic correction, RTL/LTR, styles, SRT/ASS
+  export) built on top of these raw transcripts.
+- Added pytest as a proper uv dev dependency (dependency-groups.dev)
+  so 'uv sync' installs it automatically
+- 5 new tests for transcription orchestration (path resolution,
+  status updates, batch skip-logic), stubbing the WhisperX call
+  itself so these don't require a GPU to run -- 22 tests total, all
+  passing
+---
+ nexasec/commands/captions.py         | 40 +++---------
+ nexasec/commands/clip.py             | 71 +++++++++++++++++++++
+ nexasec/services/clip_transcriber.py | 92 ++++++++++++++++++++++++++++
+ pyproject.toml                       |  5 ++
+ tests/test_clip_transcriber.py       | 91 +++++++++++++++++++++++++++
+ 5 files changed, 267 insertions(+), 32 deletions(-)
+ create mode 100644 nexasec/services/clip_transcriber.py
+ create mode 100644 tests/test_clip_transcriber.py
+
+diff --git a/nexasec/commands/captions.py b/nexasec/commands/captions.py
+index ed6999f..39b54da 100644
+--- a/nexasec/commands/captions.py
++++ b/nexasec/commands/captions.py
+@@ -1,38 +1,14 @@
+ import typer
+-from pathlib import Path
+-
+-from nexasec.services.transcriber import transcribe_audio
+ 
+ 
+ app = typer.Typer()
+ 
+ 
+-@app.command()
+-def generate(
+-    project: str
+-):
+-
+-    audio = (
+-        Path("projects")
+-        / project
+-        / "assets"
+-        / "audio"
+-        / "source.wav"
+-    )
+-
+-    output = (
+-        Path("projects")
+-        / project
+-        / "captions"
+-        / "raw"
+-        / "transcript.json"
+-    )
+-
+-
+-    transcribe_audio(
+-        str(audio),
+-        str(output)
+-    )
+-
+-
+-    print("✔ Captions generated")
++# NOTE: raw transcription now happens per-clip via
++# 'nexasec clip transcribe <project> <clip>' (see commands/clip.py).
++#
++# This command group is reserved for the Caption Engine (M4):
++# Arabic correction, RTL/LTR formatting, style-driven caption
++# rendering (clean captions for YouTube, karaoke for Shorts), and
++# SRT/ASS export -- built on top of the raw transcripts clip
++# transcribe already produces.
+diff --git a/nexasec/commands/clip.py b/nexasec/commands/clip.py
+index 56a760e..5fe27d4 100644
+--- a/nexasec/commands/clip.py
++++ b/nexasec/commands/clip.py
+@@ -7,6 +7,7 @@ from nexasec.core.clip_store import clip_folder, load_clip, save_clip
+ from nexasec.services.clip_attacher import attach as attach_media
+ from nexasec.services.clip_attacher import SUPPORTED_MEDIA_TYPES
+ from nexasec.services.audio_sync import sync_audio
++from nexasec.services.clip_transcriber import transcribe_clip, transcribe_all_clips
+ 
+ 
+ app = typer.Typer()
+@@ -141,3 +142,73 @@ def sync(
+         )
+ 
+         raise typer.Exit(code=1)
++
++
++@app.command()
++def transcribe(
++    project: str,
++    clip_name: str,
++    model_size: str = "small"
++):
++    """
++    Transcribe a clip's microphone audio with WhisperX.
++
++    Requires audio to already be attached via 'clip attach ... audio'.
++    """
++
++    try:
++
++        output = transcribe_clip(
++            project,
++            clip_name,
++            model_size=model_size
++        )
++
++        console.print(
++            f"[bold green]✔ Clip '{clip_name}' transcribed:[/bold green] {output}"
++        )
++
++    except Exception as e:
++
++        console.print(
++            f"[bold red]✖ {e}[/bold red]"
++        )
++
++        raise typer.Exit(code=1)
++
++
++@app.command(name="transcribe-all")
++def transcribe_all(
++    project: str,
++    model_size: str = "small"
++):
++    """
++    Transcribe every clip in a project that has audio attached.
++    Clips without audio yet are skipped.
++    """
++
++    try:
++
++        results = transcribe_all_clips(
++            project,
++            model_size=model_size
++        )
++
++        if not results:
++            console.print(
++                "[yellow]No clips with attached audio found.[/yellow]"
++            )
++            return
++
++        for clip_name, output in results.items():
++            console.print(
++                f"[bold green]✔ {clip_name}:[/bold green] {output}"
++            )
++
++    except Exception as e:
++
++        console.print(
++            f"[bold red]✖ {e}[/bold red]"
++        )
++
++        raise typer.Exit(code=1)
+diff --git a/nexasec/services/clip_transcriber.py b/nexasec/services/clip_transcriber.py
+new file mode 100644
+index 0000000..2e4c204
+--- /dev/null
++++ b/nexasec/services/clip_transcriber.py
+@@ -0,0 +1,92 @@
++from pathlib import Path
++
++from nexasec.core.clip_store import clip_folder, load_clip, save_clip
++from nexasec.services.transcriber import transcribe_audio
++
++
++def transcribe_clip(
++    project: str,
++    clip_name: str,
++    model_size: str = "small"
++) -> Path:
++    """
++    Transcribe a clip's attached microphone audio with WhisperX and
++    store the result under the clip's own captions/raw folder.
++
++    Requires audio to already be attached via
++    'nexasec clip attach <project> <clip> audio <file>'.
++    """
++
++    metadata = load_clip(project, clip_name)
++
++    if not metadata.audio.file:
++        raise ValueError(
++            f"Clip '{clip_name}' has no audio attached yet. "
++            f"Run 'nexasec clip attach {project} {clip_name} audio <file>' first."
++        )
++
++    folder = clip_folder(project, clip_name)
++
++    audio_path = folder / "audio" / metadata.audio.file
++    output_path = folder / "captions" / "raw" / "transcript.json"
++
++    output_path.parent.mkdir(
++        parents=True,
++        exist_ok=True
++    )
++
++    transcribe_audio(
++        str(audio_path),
++        str(output_path),
++        model_size=model_size
++    )
++
++    metadata.status = "transcribed"
++    save_clip(project, clip_name, metadata)
++
++    return output_path
++
++
++def transcribe_all_clips(
++    project: str,
++    model_size: str = "small"
++) -> dict[str, Path]:
++    """
++    Transcribe every clip in a project that has audio attached.
++    Clips without audio are skipped, not errored -- a project can
++    legitimately mix clips still being imported with clips ready
++    to transcribe.
++    """
++
++    clips_root = (
++        Path("projects")
++        / project
++        / "sources"
++        / "clips"
++    )
++
++    if not clips_root.exists():
++        raise FileNotFoundError(
++            f"Project '{project}' has no clips yet."
++        )
++
++    results: dict[str, Path] = {}
++
++    for clip_dir in sorted(clips_root.iterdir()):
++
++        if not clip_dir.is_dir():
++            continue
++
++        clip_name = clip_dir.name
++        metadata = load_clip(project, clip_name)
++
++        if not metadata.audio.file:
++            continue
++
++        results[clip_name] = transcribe_clip(
++            project,
++            clip_name,
++            model_size=model_size
++        )
++
++    return results
+diff --git a/pyproject.toml b/pyproject.toml
+index f6817db..fabe4cc 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -13,6 +13,11 @@ dependencies = [
+ [project.scripts]
+ nexa = "nexasec.cli:app"
+ 
++[dependency-groups]
++dev = [
++    "pytest>=8.0.0",
++]
++
+ [build-system]
+ requires = ["hatchling"]
+ build-backend = "hatchling.build"
+diff --git a/tests/test_clip_transcriber.py b/tests/test_clip_transcriber.py
+new file mode 100644
+index 0000000..a02139a
+--- /dev/null
++++ b/tests/test_clip_transcriber.py
+@@ -0,0 +1,91 @@
++import json
++
++import pytest
++
++from nexasec.core.clip import create_clip
++from nexasec.core.clip_store import clip_folder, load_clip
++from nexasec.services.clip_attacher import attach_audio
++from nexasec.services import clip_transcriber
++
++
++def _fake_transcribe_audio(audio_path, output_path, model_size="small"):
++    """
++    Stand-in for the real WhisperX call: writes a minimal valid
++    transcript so we can test path resolution and status updates
++    without needing torch/whisperx/a GPU in the test environment.
++    """
++
++    from pathlib import Path
++
++    Path(output_path).write_text(
++        json.dumps({"segments": [{"text": "hello", "start": 0.0, "end": 1.0}]})
++    )
++
++
++@pytest.fixture(autouse=True)
++def stub_whisperx(monkeypatch):
++    monkeypatch.setattr(
++        clip_transcriber,
++        "transcribe_audio",
++        _fake_transcribe_audio
++    )
++
++
++def test_transcribe_clip_writes_output_and_updates_status(isolated_cwd, test_audio):
++
++    create_clip("lesson-001", "1.1")
++    attach_audio("lesson-001", "1.1", str(test_audio))
++
++    output = clip_transcriber.transcribe_clip("lesson-001", "1.1")
++
++    assert output.exists()
++
++    data = json.loads(output.read_text())
++    assert "segments" in data
++
++    metadata = load_clip("lesson-001", "1.1")
++    assert metadata.status == "transcribed"
++
++
++def test_transcribe_clip_output_path_is_under_clip_captions(isolated_cwd, test_audio):
++
++    create_clip("lesson-001", "1.1")
++    attach_audio("lesson-001", "1.1", str(test_audio))
++
++    output = clip_transcriber.transcribe_clip("lesson-001", "1.1")
++
++    expected = (
++        clip_folder("lesson-001", "1.1")
++        / "captions"
++        / "raw"
++        / "transcript.json"
++    )
++
++    assert output == expected
++
++
++def test_transcribe_clip_without_audio_raises(isolated_cwd):
++
++    create_clip("lesson-001", "1.1")
++
++    with pytest.raises(ValueError, match="no audio attached"):
++        clip_transcriber.transcribe_clip("lesson-001", "1.1")
++
++
++def test_transcribe_all_skips_clips_without_audio(isolated_cwd, test_audio):
++
++    create_clip("lesson-001", "1.1")
++    attach_audio("lesson-001", "1.1", str(test_audio))
++
++    create_clip("lesson-001", "2.1")  # no audio attached
++
++    results = clip_transcriber.transcribe_all_clips("lesson-001")
++
++    assert "1.1" in results
++    assert "2.1" not in results
++
++
++def test_transcribe_all_missing_project_raises(isolated_cwd):
++
++    with pytest.raises(FileNotFoundError):
++        clip_transcriber.transcribe_all_clips("does-not-exist")
+-- 
+2.43.0
+

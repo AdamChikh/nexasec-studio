@@ -31,6 +31,8 @@ projects/**/captions/rendered/*
 # Temporary files
 *.tmp
 *.cache
+*.mov
+*.mp4
 
 # Python
 __pycache__/
