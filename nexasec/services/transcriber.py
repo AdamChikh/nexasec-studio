@@ -1,22 +1,39 @@
 from pathlib import Path
 import json
+import torch
 import whisperx
+
+
+def _resolve_device() -> str:
+    """
+    Prefer CUDA when available (production box has PyTorch CUDA),
+    but fall back to CPU so this doesn't hard-crash on machines
+    without a GPU (e.g. CI, or testing this module in isolation).
+    """
+
+    if torch.cuda.is_available():
+        return "cuda"
+
+    return "cpu"
 
 
 def transcribe_audio(
     audio_path: str,
     output_path: str,
-    model_size: str = "small"
+    model_size: str = "small",
+    device: str | None = None
 ):
 
-    device = "cuda"
+    device = device or _resolve_device()
 
-    print("Loading WhisperX model...")
+    compute_type = "float16" if device == "cuda" else "int8"
+
+    print(f"Loading WhisperX model on '{device}'...")
 
     model = whisperx.load_model(
         model_size,
         device=device,
-        compute_type="float16"
+        compute_type=compute_type
     )
 
     print("Loading audio...")

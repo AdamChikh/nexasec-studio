@@ -1,8 +1,9 @@
 from nexasec.services.video_analyzer import analyze_video
 
 
-result = analyze_video(
-    "tests/assets/test-video.mp4"
-)
+def test_analyze_video_returns_streams(test_video):
 
-print(result)
+    result = analyze_video(str(test_video))
+
+    assert "streams" in result
+    assert len(result["streams"]) > 0
