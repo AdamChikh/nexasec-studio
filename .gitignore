@@ -41,3 +41,8 @@ __pycache__/
 
 *.patch
 *:Zone.Identifier
+
+# Node (HyperFrames CLI runs from motion-graphics/ but npx can
+# sometimes touch the invoking directory)
+node_modules/
+package-lock.json
