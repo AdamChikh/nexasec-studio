@@ -6,7 +6,7 @@ from nexasec.core.clip import create_clip
 from nexasec.core.clip_store import clip_folder, load_clip, save_clip
 from nexasec.services.clip_attacher import attach as attach_media
 from nexasec.services.clip_attacher import SUPPORTED_MEDIA_TYPES
-from nexasec.services.audio_sync import sync_audio
+from nexasec.services.clip_syncer import sync_clip
 from nexasec.services.clip_transcriber import transcribe_clip, transcribe_all_clips
 
 
@@ -102,34 +102,7 @@ def sync(
 
     try:
 
-        metadata = load_clip(project, clip_name)
-
-        if not metadata.video.file:
-            raise ValueError(
-                f"Clip '{clip_name}' has no video attached yet. "
-                f"Run 'nexasec clip attach {project} {clip_name} video <file>' first."
-            )
-
-        if not metadata.audio.file:
-            raise ValueError(
-                f"Clip '{clip_name}' has no audio attached yet. "
-                f"Run 'nexasec clip attach {project} {clip_name} audio <file>' first."
-            )
-
-        folder = clip_folder(project, clip_name)
-
-        video_path = folder / "video" / metadata.video.file
-        audio_path = folder / "audio" / metadata.audio.file
-        output_path = folder / "video" / "synced.mp4"
-
-        sync_audio(
-            str(video_path),
-            str(audio_path),
-            str(output_path)
-        )
-
-        metadata.status = "synced"
-        save_clip(project, clip_name, metadata)
+        output_path = sync_clip(project, clip_name)
 
         console.print(
             f"[bold green]✔ Clip '{clip_name}' synced:[/bold green] {output_path}"

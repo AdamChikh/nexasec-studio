@@ -59,6 +59,8 @@ def sync_audio(
         "-ar",
         "48000",
 
+        "-shortest",
+
         str(output)
     ]
 

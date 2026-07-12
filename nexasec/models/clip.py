@@ -14,9 +14,17 @@ class ClipVideo:
     stay as separate ints (not a combined "WxH" string) so this data
     can be consumed programmatically (e.g. by the timeline/render
     engines later) without re-parsing a string.
+
+    `file` is the raw imported video (camera/screen recording as
+    shot, with whatever audio it originally captured -- often a
+    camera's built-in mic). `synced_file`, when present, is the
+    version produced by 'clip sync' with the dedicated microphone
+    audio muxed in -- this is the one the timeline/render engine
+    should actually use when it exists.
     """
 
     file: Optional[str] = None
+    synced_file: Optional[str] = None
     duration: Optional[float] = None
     width: Optional[int] = None
     height: Optional[int] = None
@@ -97,6 +105,7 @@ class ClipMetadata:
             status=data.get("status", "raw"),
             video=ClipVideo(
                 file=video_data.get("file"),
+                synced_file=video_data.get("synced_file"),
                 duration=video_data.get("duration"),
                 width=video_data.get("width"),
                 height=video_data.get("height"),

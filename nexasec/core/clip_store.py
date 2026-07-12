@@ -47,3 +47,25 @@ def save_clip(project: str, clip_name: str, metadata: ClipMetadata) -> Path:
     metadata.save(path)
 
     return path
+
+
+def clip_video_path(project: str, clip_name: str) -> Path:
+    """
+    Resolve the correct video file to actually use for this clip:
+    the audio-synced version if 'clip sync' has been run, otherwise
+    the raw imported video. Consumers (timeline validation, render
+    engine) should always go through this rather than reading
+    metadata.video.file directly, so a synced clip's dedicated
+    microphone audio actually gets used downstream.
+    """
+
+    metadata = load_clip(project, clip_name)
+
+    filename = metadata.video.synced_file or metadata.video.file
+
+    if not filename:
+        raise ValueError(
+            f"Clip '{clip_name}' has no video attached yet."
+        )
+
+    return clip_folder(project, clip_name) / "video" / filename
