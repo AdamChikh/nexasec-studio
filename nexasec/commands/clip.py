@@ -92,20 +92,35 @@ def attach(
 @app.command()
 def sync(
     project: str,
-    clip_name: str
+    clip_name: str,
+    offset: float = typer.Option(
+        None,
+        "--offset",
+        help="Manually specify the audio offset in seconds instead of auto-detecting it.",
+    ),
 ):
     """
     Replace a clip's camera audio with its attached microphone
     audio. Requires both video and audio to already be attached
     to the clip.
+
+    By default, automatically detects how far into the audio file
+    the video's content actually begins (by cross-correlating the
+    video's own built-in audio against the external mic recording)
+    and trims accordingly, since camera and mic recordings rarely
+    start at exactly the same instant. Use --offset to override this
+    if auto-detection gets it wrong.
     """
 
     try:
 
-        output_path = sync_clip(project, clip_name)
+        output_path, detected_offset = sync_clip(
+            project, clip_name, audio_offset=offset
+        )
 
         console.print(
-            f"[bold green]✔ Clip '{clip_name}' synced:[/bold green] {output_path}"
+            f"[bold green]✔ Clip '{clip_name}' synced"
+            f" (audio offset: {detected_offset:.2f}s):[/bold green] {output_path}"
         )
 
     except Exception as e:

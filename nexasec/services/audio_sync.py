@@ -5,7 +5,8 @@ import subprocess
 def sync_audio(
     video_path: str,
     audio_path: str,
-    output_path: str
+    output_path: str,
+    audio_offset: float = 0.0,
 ):
 
     video = Path(video_path)
@@ -29,6 +30,14 @@ def sync_audio(
 
         "-i",
         str(video),
+
+        # -ss before this -i trims the external audio to start at
+        # its detected alignment point (see services/audio_aligner.py)
+        # rather than assuming video and audio started recording at
+        # exactly the same instant, which is very often not true for
+        # two separately-started recording devices.
+        "-ss",
+        str(audio_offset),
 
         "-i",
         str(audio),
