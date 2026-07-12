@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 import shutil
 import subprocess
 
@@ -60,6 +61,7 @@ def render_composition(
 
     command = [
         "npx",
+        "--yes",
         "hyperframes",
         "render",
         "--composition",
@@ -73,12 +75,18 @@ def render_composition(
         "--strict-variables",
     ]
 
+    env = os.environ.copy()
+    env["HYPERFRAMES_NO_TELEMETRY"] = "1"
+    env["HYPERFRAMES_NO_UPDATE_CHECK"] = "1"
+
     result = subprocess.run(
         command,
         cwd=str(HYPERFRAMES_PROJECT_DIR),
         capture_output=True,
         text=True,
         timeout=RENDER_TIMEOUT_SECONDS,
+        stdin=subprocess.DEVNULL,
+        env=env,
     )
 
     if result.returncode != 0:

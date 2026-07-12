@@ -1,5 +1,6 @@
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+import subprocess
 
 import pytest
 
@@ -48,7 +49,7 @@ def test_render_composition_builds_correct_command(isolated_cwd):
     comp_dir.mkdir(parents=True)
     (comp_dir / "lower-third.html").write_text("<html></html>")
 
-    def fake_run(command, cwd, capture_output, text, timeout):
+    def fake_run(command, cwd, capture_output, text, timeout, stdin=None, env=None):
         # simulate the render actually producing the output file,
         # like the real CLI would
         output_path = Path(command[command.index("--output") + 1])
@@ -70,7 +71,7 @@ def test_render_composition_builds_correct_command(isolated_cwd):
     call_args = mock_run.call_args
     command = call_args.args[0]
 
-    assert command[0:3] == ["npx", "hyperframes", "render"]
+    assert command[0:4] == ["npx", "--yes", "hyperframes", "render"]
     assert "--composition" in command
     assert command[command.index("--composition") + 1] == str(
         Path("compositions") / "lower-third.html"
@@ -90,7 +91,7 @@ def test_render_composition_variables_are_valid_json(isolated_cwd):
 
     captured = {}
 
-    def fake_run(command, cwd, capture_output, text, timeout):
+    def fake_run(command, cwd, capture_output, text, timeout, stdin=None, env=None):
         captured["variables_json"] = command[command.index("--variables") + 1]
         output_path = Path(command[command.index("--output") + 1])
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -154,13 +155,48 @@ def test_render_composition_raises_if_output_missing_despite_success(isolated_cw
             )
 
 
+def test_render_composition_never_inherits_stdin(isolated_cwd):
+    """
+    Regression test: a subprocess that inherits stdin can hang
+    forever waiting on a prompt it has no way to answer. stdin must
+    always be explicitly closed.
+    """
+
+    comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
+    comp_dir.mkdir(parents=True)
+    (comp_dir / "lower-third.html").write_text("<html></html>")
+
+    with patch("shutil.which", return_value="/usr/bin/node"), \
+         patch("subprocess.run", side_effect=_fake_run_writes_output) as mock_run:
+
+        motion_graphics.render_composition("lower-third", {}, Path("out.webm"))
+
+    assert mock_run.call_args.kwargs["stdin"] == subprocess.DEVNULL
+
+
+def test_render_composition_suppresses_telemetry_and_update_check(isolated_cwd):
+
+    comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
+    comp_dir.mkdir(parents=True)
+    (comp_dir / "lower-third.html").write_text("<html></html>")
+
+    with patch("shutil.which", return_value="/usr/bin/node"), \
+         patch("subprocess.run", side_effect=_fake_run_writes_output) as mock_run:
+
+        motion_graphics.render_composition("lower-third", {}, Path("out.webm"))
+
+    env = mock_run.call_args.kwargs["env"]
+    assert env["HYPERFRAMES_NO_TELEMETRY"] == "1"
+    assert env["HYPERFRAMES_NO_UPDATE_CHECK"] == "1"
+
+
 def test_build_lower_third_output_path(isolated_cwd):
 
     comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
     comp_dir.mkdir(parents=True)
     (comp_dir / "lower-third.html").write_text("<html></html>")
 
-    def fake_run(command, cwd, capture_output, text, timeout):
+    def fake_run(command, cwd, capture_output, text, timeout, stdin=None, env=None):
         output_path = Path(command[command.index("--output") + 1])
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"fake")
@@ -180,7 +216,7 @@ def test_build_lower_third_output_path(isolated_cwd):
     assert output == expected.resolve()
 
 
-def _fake_run_writes_output(command, cwd, capture_output, text, timeout):
+def _fake_run_writes_output(command, cwd, capture_output, text, timeout, stdin=None, env=None):
     output_path = Path(command[command.index("--output") + 1])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(b"fake")
