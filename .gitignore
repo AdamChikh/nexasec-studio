@@ -46,3 +46,6 @@ __pycache__/
 # sometimes touch the invoking directory)
 node_modules/
 package-lock.json
+
+# Rendered motion graphics (regenerable via nexa graphics ...)
+projects/**/assets/graphics/*
