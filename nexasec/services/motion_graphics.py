@@ -113,15 +113,7 @@ def build_lower_third(
     """
 
     variables = {"name": name, "title": title}
-
-    if accent_color is not None:
-        variables["accentColor"] = accent_color
-
-    if text_color is not None:
-        variables["textColor"] = text_color
-
-    if background_color is not None:
-        variables["backgroundColor"] = background_color
+    _add_color_overrides(variables, accent_color, text_color, background_color)
 
     output_path = (
         Path("projects")
@@ -138,3 +130,111 @@ def build_lower_third(
         output_path,
         output_format="webm",
     )
+
+
+def build_chapter_card(
+    project: str,
+    chapter_id: str,
+    chapter_title: str,
+    chapter_number: str | None = None,
+    accent_color: str | None = None,
+    text_color: str | None = None,
+    background_color: str | None = None,
+) -> Path:
+    """
+    Render a chapter card overlay (brief, announces a new section).
+    """
+
+    variables = {"chapterTitle": chapter_title}
+
+    if chapter_number is not None:
+        variables["chapterNumber"] = chapter_number
+
+    _add_color_overrides(variables, accent_color, text_color, background_color)
+
+    output_path = (
+        Path("projects")
+        / project
+        / "assets"
+        / "graphics"
+        / "chapter-cards"
+        / f"{chapter_id}.webm"
+    )
+
+    return render_composition(
+        "chapter-card",
+        variables,
+        output_path,
+        output_format="webm",
+    )
+
+
+def build_intro(
+    project: str,
+    subtitle: str = "",
+    accent_color: str | None = None,
+    text_color: str | None = None,
+    background_color: str | None = None,
+) -> Path:
+    """
+    Render the intro card. Opaque (not a transparent overlay) --
+    intros are standalone timeline segments spliced in, not
+    composited over existing footage.
+    """
+
+    variables = {"subtitle": subtitle}
+    _add_color_overrides(variables, accent_color, text_color, background_color)
+
+    output_path = (
+        Path("projects") / project / "assets" / "graphics" / "intro.mp4"
+    )
+
+    return render_composition(
+        "intro",
+        variables,
+        output_path,
+        output_format="mp4",
+    )
+
+
+def build_outro(
+    project: str,
+    cta_text: str = "Subscribe for more",
+    accent_color: str | None = None,
+    text_color: str | None = None,
+    background_color: str | None = None,
+) -> Path:
+    """
+    Render the outro card. Opaque, same reasoning as build_intro.
+    """
+
+    variables = {"ctaText": cta_text}
+    _add_color_overrides(variables, accent_color, text_color, background_color)
+
+    output_path = (
+        Path("projects") / project / "assets" / "graphics" / "outro.mp4"
+    )
+
+    return render_composition(
+        "outro",
+        variables,
+        output_path,
+        output_format="mp4",
+    )
+
+
+def _add_color_overrides(
+    variables: dict,
+    accent_color: str | None,
+    text_color: str | None,
+    background_color: str | None,
+) -> None:
+
+    if accent_color is not None:
+        variables["accentColor"] = accent_color
+
+    if text_color is not None:
+        variables["textColor"] = text_color
+
+    if background_color is not None:
+        variables["backgroundColor"] = background_color

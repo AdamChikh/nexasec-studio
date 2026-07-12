@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html data-composition-variables='[
+  {"id":"subtitle","type":"string","label":"Subtitle / Lesson Title","default":""},
+  {"id":"accentColor","type":"color","label":"Accent","default":"#C6A15B"},
+  {"id":"textColor","type":"color","label":"Text","default":"#FFFFFF"},
+  {"id":"backgroundColor","type":"color","label":"Background","default":"#0A0A0C"}
+]'>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; }
+
+  [data-composition-id="intro"] {
+    position: relative;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .intro-content {
+    text-align: center;
+  }
+
+  .intro-wordmark {
+    font-size: 108px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .intro-accent-line {
+    width: 64px;
+    height: 3px;
+    margin: 28px auto 0;
+    border-radius: 2px;
+  }
+
+  .intro-subtitle {
+    font-size: 30px;
+    font-weight: 400;
+    margin-top: 24px;
+    letter-spacing: 0.02em;
+  }
+</style>
+</head>
+<body>
+
+  <div data-composition-id="intro" data-width="1920" data-height="1080" data-duration="3.5">
+
+    <div id="intro-bg" class="clip" data-start="0" data-duration="3.5"
+         data-track-index="0"
+         style="position:absolute; inset:0;"></div>
+
+    <div id="intro-content" class="clip intro-content"
+         data-start="0" data-duration="3.5" data-track-index="1">
+      <div id="intro-wordmark" class="intro-wordmark">NexaSec</div>
+      <div id="intro-accent-line" class="intro-accent-line"></div>
+      <div id="intro-subtitle" class="intro-subtitle"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var vars = window.__hyperframes.getVariables();
+
+        var subtitle = vars.subtitle !== undefined ? vars.subtitle : "";
+        var accentColor = vars.accentColor !== undefined ? vars.accentColor : "#C6A15B";
+        var textColor = vars.textColor !== undefined ? vars.textColor : "#FFFFFF";
+        var backgroundColor = vars.backgroundColor !== undefined ? vars.backgroundColor : "#0A0A0C";
+
+        var bg = document.getElementById("intro-bg");
+        var wordmark = document.getElementById("intro-wordmark");
+        var accentLine = document.getElementById("intro-accent-line");
+        var subtitleEl = document.getElementById("intro-subtitle");
+        var content = document.getElementById("intro-content");
+
+        bg.style.background = backgroundColor;
+        wordmark.style.color = textColor;
+        accentLine.style.background = accentColor;
+        subtitleEl.style.color = accentColor;
+        subtitleEl.textContent = subtitle;
+        subtitleEl.style.display = subtitle ? "block" : "none";
+
+        // Calm scale+fade reveal, hold, then fade out. No spring/
+        // elastic bounce -- premium/Apple-style, not a loud sting.
+        var tl = gsap.timeline({ paused: true });
+
+        tl.set(content, { opacity: 0, scale: 0.96 });
+        tl.set(accentLine, { scaleX: 0 });
+
+        tl.to(content, {
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          ease: "power2.out",
+        }, 0);
+
+        tl.to(accentLine, {
+          scaleX: 1,
+          duration: 0.5,
+          ease: "power2.out",
+        }, 0.5);
+
+        tl.to(content, {
+          opacity: 0,
+          duration: 0.5,
+          ease: "power2.in",
+        }, 3.0);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["intro"] = tl;
+      })();
+    </script>
+
+  </div>
+
+</body>
+</html>

@@ -178,3 +178,74 @@ def test_build_lower_third_output_path(isolated_cwd):
         / "lower-thirds" / "1.1.webm"
     )
     assert output == expected.resolve()
+
+
+def _fake_run_writes_output(command, cwd, capture_output, text, timeout):
+    output_path = Path(command[command.index("--output") + 1])
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(b"fake")
+    return _fake_completed_process(returncode=0)
+
+
+def test_build_chapter_card_output_path_and_format(isolated_cwd):
+
+    comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
+    comp_dir.mkdir(parents=True)
+    (comp_dir / "chapter-card.html").write_text("<html></html>")
+
+    with patch("shutil.which", return_value="/usr/bin/node"), \
+         patch("subprocess.run", side_effect=_fake_run_writes_output) as mock_run:
+
+        output = motion_graphics.build_chapter_card(
+            "lesson-001", "ch1", "Variables", chapter_number="01"
+        )
+
+    expected = (
+        Path("projects") / "lesson-001" / "assets" / "graphics"
+        / "chapter-cards" / "ch1.webm"
+    )
+    assert output == expected.resolve()
+
+    command = mock_run.call_args.args[0]
+    assert command[command.index("--format") + 1] == "webm"
+
+    import json
+    variables = json.loads(command[command.index("--variables") + 1])
+    assert variables["chapterTitle"] == "Variables"
+    assert variables["chapterNumber"] == "01"
+
+
+def test_build_intro_is_opaque_mp4(isolated_cwd):
+
+    comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
+    comp_dir.mkdir(parents=True)
+    (comp_dir / "intro.html").write_text("<html></html>")
+
+    with patch("shutil.which", return_value="/usr/bin/node"), \
+         patch("subprocess.run", side_effect=_fake_run_writes_output) as mock_run:
+
+        output = motion_graphics.build_intro("lesson-001", subtitle="Python from Zero")
+
+    expected = Path("projects") / "lesson-001" / "assets" / "graphics" / "intro.mp4"
+    assert output == expected.resolve()
+
+    command = mock_run.call_args.args[0]
+    assert command[command.index("--format") + 1] == "mp4"
+
+
+def test_build_outro_is_opaque_mp4(isolated_cwd):
+
+    comp_dir = motion_graphics.HYPERFRAMES_PROJECT_DIR / "compositions"
+    comp_dir.mkdir(parents=True)
+    (comp_dir / "outro.html").write_text("<html></html>")
+
+    with patch("shutil.which", return_value="/usr/bin/node"), \
+         patch("subprocess.run", side_effect=_fake_run_writes_output) as mock_run:
+
+        output = motion_graphics.build_outro("lesson-001")
+
+    expected = Path("projects") / "lesson-001" / "assets" / "graphics" / "outro.mp4"
+    assert output == expected.resolve()
+
+    command = mock_run.call_args.args[0]
+    assert command[command.index("--format") + 1] == "mp4"
